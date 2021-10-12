@@ -30,17 +30,21 @@ def remove_release(lines):
         new_data.append([x for x in lines[i] if x[0] == 'down'])
     return new_data
 
-def plot_input(input):
-    xAxis = [0]*len(input)
+def identify_keys(input):
+    xAxis = [0] * len(input)
     count = 0
     for i in range(len(input)):
-        if (input[i][0]=='down'):
+        if (input[i][0] == 'down'):
             xAxis[i] = count
-            for j in range(count+1,len(input)):
-                if (input[j][1]==input[i][1] and input[j][0]=='up'):
-                    xAxis[j]=count
+            for j in range(count + 1, len(input)):
+                if (input[j][1] == input[i][1] and input[j][0] == 'up'):
+                    xAxis[j] = count
                     break
-            count+=1
+            count += 1
+    return xAxis
+
+def plot_input(input):
+    xAxis = identify_keys(input)
     xAxis=[password[i] for i in xAxis]
     print(xAxis)
     keys = [x[2] for x in input]
@@ -76,7 +80,7 @@ def graph(data):
 
 
 # def analyse(input):
-#     file = open("D:\\Progs\\HappyMeal\\KeySig\\inputs","r")
+#     file = open("D:\\Progs\\HappyMeal\\KeySig\\inputs_old","r")
 #     lines = file.read().split('\n\n')
 #     file.close()
 #     lines = lines[:-1]
@@ -101,6 +105,57 @@ def print_dispersion(data):
     test = test[:-2]
     print(test)
 
+def overlap_analysis(data):
+    part_overlap = []
+    full_overlap = []
+    overlap = []
+    ids = identify_keys(data)
+    for i in range(len(data)):
+        debug_i = data[i][1]
+        if (data[i][0]=='up'):
+            continue
+        consumed = []
+        for j in range(i+1,len(data)):
+            debug_j = data[j][1]
+            if (data[j][1]==data[i][1]):
+                break
+            else:
+                consumed.append([data[j][1],ids[j]])
+        overlap.append([data[i][1],consumed])
+    for el in overlap:
+        consumed_part = []
+        consumed_full = []
+        checked = []
+        found = False
+        for i in range(len(el[1])):
+            curr = el[1][i][1]
+            if (curr not in checked):
+                for j in range(i+1,len(el[1])):
+                    if (el[1][i][1]==el[1][j][1]):
+                        consumed_full.append(el[1][i][0])
+                        checked.append(el[1][i][1])
+                        found = True
+                        break
+                if (not found):
+                    consumed_part.append(el[1][i][0])
+                    checked.append(el[1][i][1])
+        if (len(consumed_full)!=0):
+            full_overlap.append([el[0],consumed_full])
+        if (len(consumed_part) != 0):
+            part_overlap.append([el[0], consumed_part])
+    return [full_overlap,part_overlap]
+
+def print_overlap(overlap):
+    str = ''
+    for j in range(len(overlap)):
+        str+=overlap[j][0]+':'
+        for k in range(len(overlap[j][1])):
+            str+=' '+overlap[j][1][k]+','
+        str = str[:-1] + '\n'
+    str = str[:-1]
+    print(str)
+
+
 def run():
     file = open("D:\\Progs\\HappyMeal\\KeySig\\inputs", "r")
     lines = file.read().split('\n\n')
@@ -108,6 +163,7 @@ def run():
     lines = lines[:-1]
     data = proceed(lines)
     one = data[0]
+    overlaps = overlap_analysis(one)
     plot_input(one)
     exp_res = exp_learn(remove_release(delay_calc(data)))
     graph(exp_res)
@@ -115,6 +171,10 @@ def run():
     disp = dispersion(remove_release(delay_calc(data)))
     graph(disp)
     print_dispersion(disp)
+    print("Full Overlap: ")
+    print_overlap(overlaps[0])
+    print("Part Overlap: ")
+    print_overlap(overlaps[1])
 
 run()
 
