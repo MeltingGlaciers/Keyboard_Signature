@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
 import statistics
 import copy
+import database
 import numpy as np
 
 password = "privet"
+amplitude = 1
 
 def proceed(lines):
     for i in range(len(lines)):
@@ -23,6 +25,35 @@ def delay_calc(lines):
             if (j != 0):
                 new_data[i][j][2] = new_data[i][j][2] - new_data[i][j - 1][2]
     return new_data
+
+def mean_data(inputs, exp):
+    data = copy.deepcopy(inputs)[0]
+    for i in range(len(data) - 1):
+        data[i + 1][2] = exp[i]
+    return data
+
+def hold_calc(data):
+    hold_data = []
+    #print(data)
+    for i in range(len(data)):
+        if (data[i][0]=='up'):
+            continue
+        for j in range(i+1,len(data)):
+            if (data[i][1]==data[j][1]):
+                hold_data.append(data[j][2]-data[i][2])
+                break
+    return hold_data
+
+def key_rel_data(data):
+    key_data = []
+    for i in range(len(data)):
+        if (data[i][0]=='up'):
+            continue
+        for j in range(i+1,len(data)):
+            if (data[i][1]==data[j][1]):
+                key_data.append([data[i][1],data[i][2],data[j][2]])
+                break
+    return key_data
 
 def remove_release(lines):
     new_data = []
@@ -59,6 +90,7 @@ def exp_learn(new_data):
             exp[i]+=new_data[j][i][2]
         exp[i]=exp[i]/len(new_data)
     exp = exp[1:]
+    print(exp)
     return exp
 
 def dispersion(data):
@@ -72,22 +104,59 @@ def dispersion(data):
             round(np.sqrt(statistics.variance(temp))))
     return disp
 
+def normalizeData(mean_attempts):
+    max_time = mean_attempts[len(mean_attempts)-1][2]
+    for i in range(len(mean_attempts)):
+        mean_attempts[i][2] = mean_attempts[i][2]/max_time
+    return mean_attempts
+
+def calcAmpl(key_data, t, num):
+    global amplitude
+
+    for i in range(len(key_data)):
+        if (i==num):
+            continue
+        if (key_data[i][1]<=t and t<=key_data[i][2]):
+            return 2*amplitude
+    return amplitude
+
+def calcHaar(r,m,t):
+    if (r==0 and m==0):
+        return 1
+
+    if ((m-1)/pow(2,r)<=t and t<(m-0.5)/pow(2,r)):
+        return pow(2,r/2)
+    elif ((m-0.5)/pow(2,r)==t and t<m/pow(2,r)):
+        return -pow(2,r/2)
+    else:
+        return 0
+
+def calcAmplVector(key_data):
+    a_vector = []
+    for i in range(len(key_data)):
+        a_vector.append(calcAmpl(key_data,key_data[i][1],i))
+    return a_vector
+
+def calcHaarVector(key_data):
+    n = len(key_data)
+    r_norm = np.log2(n)
+    haar = []
+    a_vector = calcAmplVector(key_data)
+    sum = 0
+    for r in range(n):
+        sum=0
+        for m in range(n):
+            haar_val = calcHaar(r/r_norm,m/pow(2,r/r_norm),key_data[r][1])
+            sum+=haar_val*a_vector[m]
+        haar.append(sum/n)
+    return haar
+
+
 def graph(data):
     xAxis = [password[i] for i in range(1,len(password))]
     plt.bar(range(len(data)),data)
     plt.xticks(range(len(data)),xAxis)
     plt.show()
-
-
-# def analyse(input):
-#     file = open("D:\\Progs\\HappyMeal\\KeySig\\inputs_old","r")
-#     lines = file.read().split('\n\n')
-#     file.close()
-#     lines = lines[:-1]
-#     ref = exp_learn(proceed(lines))
-#     data = [x for x in proceed([input])][0][1:]
-#     #print("res")
-#     res = [a - b for a,b in zip(ref,data)]
 
 def print_exp_value(data):
     test = "Expected values: "
@@ -156,8 +225,8 @@ def print_overlap(overlap):
     print(str)
 
 
-def run():
-    file = open("D:\\Progs\\HappyMeal\\KeySig\\inputs", "r")
+def run(login):
+    file = open("Y:\\Keyboard\\"+login, "r")
     lines = file.read().split('\n\n')
     file.close()
     lines = lines[:-1]
@@ -176,5 +245,14 @@ def run():
     print("Part Overlap: ")
     print_overlap(overlaps[1])
 
-run()
-
+def make_sign(login):
+    file = open("Y:\\Keyboard\\"+login, "r")
+    lines = file.read().split('\n\n')
+    file.close()
+    lines = lines[:-1]
+    data = proceed(lines)
+    exp = exp_learn(data)
+    mean = mean_data(data,exp)
+    norm_data = normalizeData(mean)
+    key_rel = key_rel_data(norm_data)
+    database.save(database.User(login,calcHaarVector(key_rel)))
