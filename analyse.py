@@ -84,13 +84,13 @@ def plot_input(input):
 
 def exp_learn(new_data):
     exp = []
+    #print(new_data)
     for i in range(len(new_data[0])):
         exp.append(0)
         for j in range(len(new_data)):
             exp[i]+=new_data[j][i][2]
         exp[i]=exp[i]/len(new_data)
     exp = exp[1:]
-    print(exp)
     return exp
 
 def dispersion(data):
@@ -126,7 +126,7 @@ def calcHaar(r,m,t):
 
     if ((m-1)/pow(2,r)<=t and t<(m-0.5)/pow(2,r)):
         return pow(2,r/2)
-    elif ((m-0.5)/pow(2,r)==t and t<m/pow(2,r)):
+    elif ((m-0.5)/pow(2,r)<=t and t<m/pow(2,r)):
         return -pow(2,r/2)
     else:
         return 0
@@ -139,16 +139,19 @@ def calcAmplVector(key_data):
 
 def calcHaarVector(key_data):
     n = len(key_data)
-    r_norm = np.log2(n)
+    r_norm = n / np.log2(n)
+
     haar = []
     a_vector = calcAmplVector(key_data)
     sum = 0
     for r in range(n):
         sum=0
+        m_norm = n / pow(2,r)
         for m in range(n):
-            haar_val = calcHaar(r/r_norm,m/pow(2,r/r_norm),key_data[r][1])
+            haar_val = calcHaar(r/r_norm,m/m_norm,key_data[r][1])
+            #haar_val = calcHaar(r, m, key_data[r][1])
             sum+=haar_val*a_vector[m]
-        haar.append(sum/n)
+        haar.append(abs(sum)/n)
     return haar
 
 
@@ -164,7 +167,7 @@ def print_exp_value(data):
         test = test + str(el)
         test = test + " ms, "
     test = test[:-2]
-    print(test)
+    #print(test)
 
 def print_dispersion(data):
     test = "Dispersion: "
@@ -255,4 +258,9 @@ def make_sign(login):
     mean = mean_data(data,exp)
     norm_data = normalizeData(mean)
     key_rel = key_rel_data(norm_data)
-    database.save(database.User(login,calcHaarVector(key_rel)))
+    vec = calcHaarVector(key_rel)
+    #print(vec)
+    return vec
+
+def save_sign(login, vector):
+    database.save(database.User(login, vector, password))
